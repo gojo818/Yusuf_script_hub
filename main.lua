@@ -1,7 +1,7 @@
 -- =================================================================
 -- Yusuf Script Hub (Moondiety Inspired UI & Auto-Game Detection)
--- Works smoothly on Mobile Executors (Delta, Hydrogen, Wave)
--- No Key System / Direct Load
+-- Blox Fruits Auto Chest Farm Added
+-- Works smoothly on Mobile & PC Executors (Delta, Xeno, Wave)
 -- =================================================================
 
 if not game:IsLoaded() then
@@ -14,7 +14,7 @@ local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
--- Eski GUI temizliği (Üst üste açılmayı önler)
+-- Eski GUI temizliği
 if CoreGui:FindFirstChild("YusufHubLoader") then CoreGui.YusufHubLoader:Destroy() end
 if CoreGui:FindFirstChild("YusufHubUI") then CoreGui.YusufHubUI:Destroy() end
 
@@ -38,7 +38,7 @@ local UICorner = Instance.new("UICorner", MainFrame)
 UICorner.CornerRadius = UDim.new(0, 12)
 
 local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(138, 43, 226) -- Neon Mor Moondiety Teması
+UIStroke.Color = Color3.fromRGB(138, 43, 226)
 UIStroke.Thickness = 1.5
 
 local Title = Instance.new("TextLabel")
@@ -95,4 +95,132 @@ TweenService:Create(ProgressBar, TweenInfo.new(1.8, Enum.EasingStyle.Quart, Enum
 
 task.spawn(function()
     for i = 1, 100 do
-        PercentText.Text =
+        PercentText.Text = "%" .. i
+        task.wait(0.015)
+    end
+    SubTitle.Text = "Başarıyla Yüklendi!"
+    task.wait(0.4)
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+    task.wait(0.4)
+    LoaderScreen:Destroy()
+    
+    LoadMoondietyHub()
+end)
+
+-------------------------------------------------------------------
+-- 2. MOONDIETY HUB ARAYÜZÜ (MAIN SCRIPT)
+-------------------------------------------------------------------
+function LoadMoondietyHub()
+    local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
+
+    local MainUI = OrionLib:MakeWindow({
+        Name = "Yusuf Hub | Moondiety Edition",
+        HidePremium = true,
+        SaveConfig = false,
+        IntroEnabled = false,
+        Icon = "rbxassetid://4483345998"
+    })
+
+    -- 1. EVRENSEL HAREKET SEKMESİ
+    local UniversalTab = MainUI:MakeTab({Name = "Universal", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+
+    UniversalTab:AddSlider({
+        Name = "WalkSpeed (Yürüme Hızı)",
+        Min = 16,
+        Max = 250,
+        Default = 16,
+        Color = Color3.fromRGB(138, 43, 226),
+        Increment = 1,
+        ValueName = "Speed",
+        Callback = function(Value)
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = Value
+            end
+        end    
+    })
+
+    UniversalTab:AddSlider({
+        Name = "JumpPower (Zıplama Gücü)",
+        Min = 50,
+        Max = 300,
+        Default = 50,
+        Color = Color3.fromRGB(138, 43, 226),
+        Increment = 1,
+        ValueName = "Power",
+        Callback = function(Value)
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.JumpPower = Value
+            end
+        end    
+    })
+
+    local flying = false
+    local flySpeed = 50
+    UniversalTab:AddToggle({
+        Name = "Fly (Uçma)",
+        Default = false,
+        Callback = function(Value)
+            flying = Value
+            local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+            
+            if flying and hrp then
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "HubFlyBV"
+                bv.MaxForce = Vector3.new(0,0,0)
+                bv.Velocity = Vector3.new(0,0,0)
+                bv.Parent = hrp
+                
+                local bg = Instance.new("BodyGyro")
+                bg.Name = "HubFlyBG"
+                bg.MaxTorque = Vector3.new(0,0,0)
+                bg.CFrame = hrp.CFrame
+                bg.Parent = hrp
+                
+                task.spawn(function()
+                    while flying and hrp and hrp:FindFirstChild("HubFlyBV") do
+                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                        bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+                        bg.CFrame = workspace.CurrentCamera.CFrame
+                        bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * flySpeed
+                        task.wait()
+                    end
+                    if hrp:FindFirstChild("HubFlyBV") then hrp.HubFlyBV:Destroy() end
+                    if hrp:FindFirstChild("HubFlyBG") then hrp.HubFlyBG:Destroy() end
+                end)
+            else
+                if hrp and hrp:FindFirstChild("HubFlyBV") then hrp.HubFlyBV:Destroy() end
+                if hrp and hrp:FindFirstChild("HubFlyBG") then hrp.HubFlyBG:Destroy() end
+            end
+        end
+    })
+
+    -- 2. AI FARM SEKMESİ
+    local AITab = MainUI:MakeTab({Name = "AI Auto-Farm", Icon = "rbxassetid://4483345998", PremiumOnly = false})
+    _G.AIFarmEnabled = false
+
+    local function GetNearestCollectible()
+        local character = LocalPlayer.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+        
+        local hrp = character.HumanoidRootPart
+        local nearestObj = nil
+        local shortestDistance = math.huge
+
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+                local name = obj.Name:lower()
+                if string.find(name, "coin") or string.find(name, "gem") or string.find(name, "egg") or string.find(name, "crop") or string.find(name, "collect") then
+                    local distance = (hrp.Position - obj.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        nearestObj = obj
+                    end
+                end
+            end
+        end
+        return nearestObj
+    end
+
+    AITab:AddToggle({
+        Name = "Smart Pathfinding Auto-Farm",
